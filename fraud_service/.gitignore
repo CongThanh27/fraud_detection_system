@@ -1,0 +1,32 @@
+.DS_Store
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# IDE/project settings
+.vscode/
+.idea/
+
+# ML artifacts
+artifacts/
+models/
+mlruns/
+

@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  api:
+    platform: linux/amd64
+    build: .
+    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8080"]
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+
+  # scheduler:
+  #   platform: linux/amd64
+  #   build: .
+  #   command: ["python", "scripts/scheduler.py"]
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - BATCH_INTERVAL_SECONDS=60
+  #     - RETRAIN_EVERY_N_BATCHES=5
+  #   depends_on:
+  #     - api
+  #   volumes:
+  #     - .:/app
+
+
+# docker compose build
+# docker tag fraud_service_main-api congthanh27/fraud_service_main:api-latest
+# docker tag fraud_service_main-scheduler congthanh27/fraud_service_main:scheduler-latest
+# docker push congthanh27/fraud_service_main:api-latest
+# docker push congthanh27/fraud_service_main:scheduler-latest
+# docker pull congthanh27/fraud_service_main:api-latest
+# docker pull congthanh27/fraud_service_main:scheduler-latest

@@ -13,15 +13,15 @@ from utils.encoders import export_encoders
 from utils.medians import export_medians_and_schema
 from utils.thresholds import write_thresholds_yaml
 from utils.common import split_oot, fraud_prob_from_model, compute_thresholds
-from utils.azure import (
-    configure_azure_credentials_from_settings,
-    ensure_azure_identity_env,
-)
+# from utils.azure import (
+#     configure_azure_credentials_from_settings,
+#     ensure_azure_identity_env,
+# )
 from utils.artifact_loaders import load_encoders_flexible, load_medians_and_schema_flexible
 from scripts.config import settings
 from utils.logging_utils import configure_logging
 
-configure_azure_credentials_from_settings()
+# configure_azure_credentials_from_settings()
 LOGGER = logging.getLogger(__name__)
 
 # Định nghĩa lớp mô hình MLflow pyfunc
@@ -134,7 +134,7 @@ def train_once(nonfraud_path: str, fraud_path: str,
     Xte = df_align(test_raw .drop(columns=[c for c in drop_cols if c in test_raw.columns],  errors="ignore"))
 
     # encode
-    maybe_cats = ["receiving_country","country_code","id_type","stay_qualify","payment_method"]
+    maybe_cats = ["receiving_country","country_code","id_type","stay_qualify","payment_method", "payment_method_filled"]
     cat_cols = [c for c in maybe_cats if c in Xtr.columns]
     Xtr_enc, encoders = encode_categoricals(Xtr, cat_cols, encoders=None)
     Xte_enc, _ = encode_categoricals(Xte, cat_cols, encoders=encoders)
@@ -264,7 +264,7 @@ def train_once(nonfraud_path: str, fraud_path: str,
             base_tags.update(mlflow_tags_dict)
         mlflow.set_tags(base_tags)
 
-        ensure_azure_identity_env()
+        # ensure_azure_identity_env()
         mlflow.log_artifacts(artifacts_dir, artifact_path="artifacts")
         mlflow.log_artifacts(model_dir,     artifact_path="ydf_model")
 

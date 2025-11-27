@@ -14,8 +14,8 @@ configure_logging()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYTHON_BIN = os.getenv("PYTHON_BIN", sys.executable)
-BATCH_INTERVAL_SECONDS = int(os.getenv("BATCH_INTERVAL_SECONDS", "900"))
-RETRAIN_EVERY_N_BATCHES = int(os.getenv("RETRAIN_EVERY_N_BATCHES", "672"))
+BATCH_INTERVAL_SECONDS = int(os.getenv("BATCH_INTERVAL_SECONDS", "900"))# 15 phút
+RETRAIN_EVERY_N_BATCHES = int(os.getenv("RETRAIN_EVERY_N_BATCHES", "672"))# khoảng 7 ngày nếu chạy mỗi 15 phút
 
 _should_exit = False
 

@@ -29,6 +29,7 @@ from app.auth import (
 from app.database import get_db  
 from app.models_auth import AuthUser
 from utils.logging_utils import configure_logging
+
 from fastapi.middleware.cors import CORSMiddleware 
 
 
@@ -46,18 +47,20 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Định nghĩa các nguồn gốc được phép (Origins)
 origins = [
-    "http://localhost:3000", 
-    "http://0.0.0.0:3000",
-    
+    "http://localhost:3000",  # Cho phép Frontend React truy cập
+    "http://127.0.0.1:3000",
+    # Thêm các domain production sau này nếu cần
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,            
-    allow_credentials=True,          
-    allow_methods=["*"],             
-    allow_headers=["*"],             
+    allow_origins=["*"],             # Cho phép các nguồn gốc trên
+    allow_credentials=True,            # Cho phép cookies/ủy quyền
+    allow_methods=["*"],               # Cho phép tất cả các phương thức (GET, POST, PUT, DELETE, OPTIONS, etc.)
+    allow_headers=["*"],               # Cho phép tất cả các header
 )
 #  Scheduler 
 PYTHON_BIN = sys.executable
@@ -85,35 +88,35 @@ _hydrate()
 #     except Exception as e:
 #         LOGGER.error(f"SCHEDULER: Failed to run {script_path}: {e}", exc_info=True)
 
-async def run_retrain_job_scheduled():
-    """Chạy retrain_rolling_mlflow.py trong một tiến trình con (subprocess)."""
-    script_path = str(PROJECT_ROOT / "scripts/retrain_rolling_mlflow.py")
-    LOGGER.info(f"SCHEDULER: Starting {script_path}")
-    try:
-        proc = await asyncio.create_subprocess_exec(PYTHON_BIN, script_path)
-        await proc.wait()
-        LOGGER.info(f"SCHEDULER: Finished {script_path} with code {proc.returncode}")
-        if proc.returncode == 0:
-            LOGGER.info("SCHEDULER: Reloading model and artifacts after retrain...")
-            _hydrate()
-    except Exception as e:
-        LOGGER.error(f"SCHEDULER: Failed to run {script_path}: {e}", exc_info=True)
+# async def run_retrain_job_scheduled():
+#     """Chạy retrain_rolling_mlflow.py trong một tiến trình con (subprocess)."""
+#     script_path = str(PROJECT_ROOT / "scripts/retrain_rolling_mlflow.py")
+#     LOGGER.info(f"SCHEDULER: Starting {script_path}")
+#     try:
+#         proc = await asyncio.create_subprocess_exec(PYTHON_BIN, script_path)
+#         await proc.wait()
+#         LOGGER.info(f"SCHEDULER: Finished {script_path} with code {proc.returncode}")
+#         if proc.returncode == 0:
+#             LOGGER.info("SCHEDULER: Reloading model and artifacts after retrain...")
+#             _hydrate()
+#     except Exception as e:
+#         LOGGER.error(f"SCHEDULER: Failed to run {script_path}: {e}", exc_info=True)
 
-# Startup/Shutdown 
-@app.on_event("startup")
-async def startup_event():
-    """Khi API khởi động, hãy khởi động Scheduler."""
-    LOGGER.info("Scheduler starting...")
-    # Thêm các tác vụ vào lịch trình
-    # scheduler.add_job(run_batch_job_scheduled, 'interval', minutes=1, id="batch_job")
-    scheduler.add_job(run_retrain_job_scheduled, 'interval', minutes=5, id="retrain_job")
-    scheduler.start()
+# # Startup/Shutdown 
+# @app.on_event("startup")
+# async def startup_event():
+#     """Khi API khởi động, hãy khởi động Scheduler."""
+#     LOGGER.info("Scheduler starting...")
+#     # Thêm các tác vụ vào lịch trình
+#     scheduler.add_job(run_batch_job_scheduled, 'interval', minutes=1, id="batch_job")
+#     scheduler.add_job(run_retrain_job_scheduled, 'interval', weeks=1, id="retrain_job")
+#     scheduler.start()
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Khi API tắt, hãy tắt Scheduler."""
-    logging.info("Scheduler shutting down...")
-    scheduler.shutdown()
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     """Khi API tắt, hãy tắt Scheduler."""
+#     logging.info("Scheduler shutting down...")
+#     scheduler.shutdown()
 
 
 class Tx(BaseModel):
@@ -195,13 +198,13 @@ def register(
     db: Session = Depends(get_db), 
     auth: Optional[AuthContext] = Depends(optional_active_user), 
 ):
-    # stmt_count = select(func.count()).select_from(AuthUser) 
-    # existing_count = db.scalar(stmt_count) or 0 
-    # if existing_count > 0 and auth is None: 
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Registration is disabled for unauthenticated users.",
-    #     )
+    stmt_count = select(func.count()).select_from(AuthUser) 
+    existing_count = db.scalar(stmt_count) or 0 
+    if existing_count > 0 and auth is None: 
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled for unauthenticated users.",
+        )
 
     stmt = select(AuthUser).where(AuthUser.username == payload.username)  # Kiểm tra username đã tồn tại chưa
     if db.execute(stmt).scalar_one_or_none(): 
@@ -256,7 +259,7 @@ def score(tx: Tx):
         feat_cols=_feat_cols,
         encoders=_encoders,
         medians=_medians,
-        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method"],
+        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method", "payment_method_filled"],
         clipping_bounds=_clipping_bounds 
     )
 
@@ -306,7 +309,7 @@ def score_batch(payload: TxBatch):
         feat_cols=_feat_cols,
         encoders=_encoders,
         medians=_medians,
-        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method"],
+        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method", "payment_method_filled"],
         clipping_bounds=_clipping_bounds
     )
 
@@ -361,7 +364,7 @@ async def score_upload(file: UploadFile = File(...), include_allow: bool = True,
         feat_cols=_feat_cols,
         encoders=_encoders,
         medians=_medians,
-        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method"],
+        maybe_cats=["receiving_country","country_code","id_type","stay_qualify","payment_method", "payment_method_filled"],
         clipping_bounds=_clipping_bounds
     )
 

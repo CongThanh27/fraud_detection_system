@@ -15,9 +15,10 @@ from utils.azure import (
 
 from app.preprocess import prepare_features_for_inference
 from utils.artifact_loaders import load_encoders_flexible, load_medians_and_schema_flexible
+import shutil
 
 # Cấu hình xác thực Azure từ cài đặt
-configure_azure_credentials_from_settings()
+# configure_azure_credentials_from_settings()
 LOGGER = logging.getLogger(__name__)
 
 # Tải xuống thư mục artifact từ MLflow
@@ -100,6 +101,15 @@ def _load_manifest_and_holdout(client: MlflowClient, run_id: str):
     holdout_raw = pd.read_csv(holdout_path)
     return manifest, holdout_raw
 
+def _cleanup_temp_dirs(temp_dirs: list[str]):
+    """Xóa tất cả các thư mục tạm thời đã tải xuống."""
+    for d in temp_dirs:
+        try:
+            shutil.rmtree(d)
+            LOGGER.info(f"Cleaned up temporary directory: {d}")
+        except OSError as e:
+            LOGGER.warning(f"Failed to clean up temporary directory {d}: {e}")
+
 # SỬA: Biến hàm main() thành hàm có thể gọi
 def compare_and_get_winner(
     client: MlflowClient, 
@@ -114,11 +124,33 @@ def compare_and_get_winner(
     if versions:
         versions = [str(v) for v in versions]
     else:
+        # MỚI: Lấy phiên bản từ alias 'Production' nếu có
         all_mv = client.search_model_versions(f"name='{name}'")
         if not all_mv or len(all_mv) < 2:
             raise SystemExit(f"Need >=2 versions in registry for {name}")
-        all_mv.sort(key=lambda x: -int(x.creation_timestamp))
-        versions = [all_mv[0].version, all_mv[1].version]
+        
+        # Sắp xếp giảm dần theo version (29, 28, 27...)
+        all_mv.sort(key=lambda x: int(x.version), reverse=True)
+        
+        candidate = all_mv[0] # Version mới nhất (29)
+        champion = None
+
+        # Tìm version đang giữ alias 'Production'
+        for mv in all_mv:
+            if "Production" in mv.aliases:
+                champion = mv
+                break
+        
+        if champion and champion.version != candidate.version:
+            # Trường hợp chuẩn: So sánh Mới Nhất (29) vs Production (27)
+            LOGGER.info(f"Found Production alias on version {champion.version}. Comparing Candidate {candidate.version} vs Champion {champion.version}")
+            versions = [candidate.version, champion.version]
+        else:
+            # Fallback: Nếu chưa có Production (lần đầu chạy) hoặc Production chính là bản mới nhất
+            # Thì so sánh 2 bản mới nhất theo thời gian (như cũ)
+            LOGGER.warning("Production alias not found or is the candidate. Falling back to comparing top 2 latest versions.")
+            versions = [all_mv[0].version, all_mv[1].version]
+        # -----------------------
 
     v1, v2 = str(versions[0]), str(versions[1])
 
@@ -173,4 +205,5 @@ def compare_and_get_winner(
         winner = v1 if pr1 >= pr2 else v2
 
     LOGGER.info("Winner version: %s", winner)
+    _cleanup_temp_dirs(["models","artifacts"])
     return winner

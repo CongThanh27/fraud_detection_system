@@ -92,11 +92,11 @@ AND t.seq IN (SELECT seq FROM f)
 def fetch_nonfraud(conn, start_dt, end_dt, limit_nf: int) -> pd.DataFrame:
     return pd.read_sql(text(SQL_NONFRAUD), conn, params={"start_dt": start_dt, "end_dt": end_dt, "limit_nf": limit_nf})
 
-# Hàm lấy dữ liệu fraud từ bảng fraud_labels
+# Function to get fraud data from fraud_labels table
 def fetch_fraud_from_table(conn, start_dt, end_dt) -> pd.DataFrame:
     return pd.read_sql(text(SQL_FRAUD_FROM_TABLE), conn, params={"start_dt": start_dt, "end_dt": end_dt})
 
-# Hàm lấy dữ liệu fraud từ danh sách seq transaction
+# Function to get fraud data from seq transaction list
 def fetch_fraud_from_seq_list(conn, start_dt, end_dt, seq_list):
     if not seq_list:
         return pd.DataFrame()

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services: 
+  postgres:
+    image: postgres:15
+    container_name: postgres-fraud-service
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fraud_detection-db
+    ports:
+      - "5432:5432"
+    networks:
+      - fraud-detection
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+networks:
+  fraud-detection:
+    driver: bridge
+
+volumes:
+  postgres-data:

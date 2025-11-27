@@ -18,7 +18,7 @@ from utils.azure import (
 )
 from scripts.config import settings
 
-configure_azure_credentials_from_settings()
+# configure_azure_credentials_from_settings()
 LOGGER = logging.getLogger(__name__)
 
 def main():
@@ -61,33 +61,32 @@ def main():
         LOGGER.info("Using default MLflow tracking URI.")
         return
     
-    ensure_azure_identity_env()
+    # ensure_azure_identity_env()
     client = MlflowClient() 
     #TẢI DỮ LIỆU 
-#     try:
-#         LOGGER.info("-----------Fetching data window...-------------")
-#         fetch_data_window(
-#             db_url=args.db_url,
-#             window_months=args.window_months,
-#             limit_nonfraud=args.limit_nonfraud,
-#             use_fraud_table=args.use_fraud_table,
-#             fraud_seqs_csv=args.fraud_seqs_csv,
-#             # out_nonfraud=settings.NONFRAUD_CSV_NAME_OUT,
-#             # out_fraud=settings.FRAUD_CSV_NAME_OUT,
-#             out_nonfraud="data/nonfraud_rolling_window.csv",
-#             out_fraud="data/fraud_rolling_window.csv",
-#             end_date=args.end_date
-#         )
-#         LOGGER.info("Data fetch completed.")
-#     except Exception as e:
-#         LOGGER.error("Data fetch failed: %s", e)
-#         return
-# #
+    # try:
+    #     LOGGER.info("-----------Fetching data window...-------------")
+    #     fetch_data_window(
+    #         db_url=args.db_url,
+    #         window_months=args.window_months,
+    #         limit_nonfraud=args.limit_nonfraud,
+    #         use_fraud_table=args.use_fraud_table,
+    #         fraud_seqs_csv=args.fraud_seqs_csv,
+    #         out_nonfraud=settings.NONFRAUD_CSV_NAME_OUT,
+    #         out_fraud=settings.FRAUD_CSV_NAME_OUT,
+    #         # out_nonfraud="data/nonfraud_rolling_window.csv",
+    #         # out_fraud="data/fraud_rolling_window.csv",
+    #         end_date=args.end_date
+    #     )
+    #     LOGGER.info("Data fetch completed.")
+    # except Exception as e:
+    #     LOGGER.error("Data fetch failed: %s", e)
+    #     return
     try:
         LOGGER.info("-----------Starting training...-------------")
         _ = train_once(
-            nonfraud_path=settings.NONFRAUD_CSV_NAME_OUT,
-            fraud_path=settings.FRAUD_CSV_NAME_OUT,
+            nonfraud_path=settings.NONFRAUD_CSV_NAME_USE,
+            fraud_path=settings.FRAUD_CSV_NAME_USE,
             artifacts_dir=args.artifacts_root,
             model_dir=args.model_root,
             test_ratio=args.test_ratio,

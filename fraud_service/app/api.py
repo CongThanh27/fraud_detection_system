@@ -198,13 +198,13 @@ def register(
     db: Session = Depends(get_db), 
     auth: Optional[AuthContext] = Depends(optional_active_user), 
 ):
-    stmt_count = select(func.count()).select_from(AuthUser) 
-    existing_count = db.scalar(stmt_count) or 0 
-    if existing_count > 0 and auth is None: 
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Registration is disabled for unauthenticated users.",
-        )
+    # stmt_count = select(func.count()).select_from(AuthUser) 
+    # existing_count = db.scalar(stmt_count) or 0 
+    # if existing_count > 0 and auth is None: 
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Registration is disabled for unauthenticated users.",
+    #     )
 
     stmt = select(AuthUser).where(AuthUser.username == payload.username)  # Kiểm tra username đã tồn tại chưa
     if db.execute(stmt).scalar_one_or_none(): 

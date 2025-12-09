@@ -1,0 +1,14 @@
+artifact_uri: /Users/nguyenthanh/Master/Smartsystem/pj/gianlan/fraud_service/mlruns/506252689229439004/7ca3f4af11a849daa2b352b85d5f816c/artifacts
+end_time: 1765305486834
+entry_point_name: ''
+experiment_id: '506252689229439004'
+lifecycle_stage: active
+run_id: 7ca3f4af11a849daa2b352b85d5f816c
+run_name: 20251209-183802
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765305484952
+status: 3
+tags: []
+user_id: nguyenthanh

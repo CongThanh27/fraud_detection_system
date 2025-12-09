@@ -126,13 +126,26 @@ def compare_and_get_winner(
     else:
         # MỚI: Lấy phiên bản từ alias 'Production' nếu có
         all_mv = client.search_model_versions(f"name='{name}'")
-        if not all_mv or len(all_mv) < 2:
-            raise SystemExit(f"Need >=2 versions in registry for {name}")
         
         # Sắp xếp giảm dần theo version (29, 28, 27...)
         all_mv.sort(key=lambda x: int(x.version), reverse=True)
         
         candidate = all_mv[0] # Version mới nhất (29)
+        champion = None
+
+        if not all_mv:
+            # Không có phiên bản nào -> dừng
+            raise SystemExit(f"No versions found in registry for {name}")
+        
+        # Nếu chỉ có 1 version -> chọn luôn nó
+        if len(all_mv) == 1:
+            only = all_mv[0]
+            LOGGER.info("Only one version (%s) found for %s. Selecting it as winner.", only.version, name)
+            return str(only.version)
+        
+        # Nếu có >=2 thì tiếp tục logic so sánh
+        all_mv.sort(key=lambda x: int(x.version), reverse=True)
+        candidate = all_mv[0]
         champion = None
 
         # Tìm version đang giữ alias 'Production'

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import { Layout } from "../component";
 import RequireAuth from "../component/common/RequireAuth";
+import RequireRoleAuth from "../component/common/RequireRoleAuth";
 import {
   Test,
   Login,
@@ -25,7 +26,9 @@ export const router = createBrowserRouter([
         path: "batch",
         element: (
           <RequireAuth>
-            <Batch />
+            <RequireRoleAuth allowedRoles={["admin"]}>
+              <Batch />
+            </RequireRoleAuth>
           </RequireAuth>
         ),
       },
@@ -33,45 +36,20 @@ export const router = createBrowserRouter([
         path: "admin",
         element: (
           <RequireAuth>
-            <Admin />
+            <RequireRoleAuth allowedRoles={["admin"]}>
+              <Admin />
+            </RequireRoleAuth>
           </RequireAuth>
         ),
       },
-      // {
-      //   path: "job",
-      //   element: <Layout2 />,
-      //   children: [
-      //     {
-      //       path: ":id",
-      //       element: <JobSingle />,
-      //     },
-      //     {
-      //       path: "",
-      //       element: <Job />,
-      //     },
-      //   ],
-      // },
-      // {
-      //   path: "messages",
-      //   element: (
-      //     <PrivateRouter>
-      //       <MessagesAdmin />
-      //     </PrivateRouter>
-      //   ),
-      // },
     ],
   },
   {
     path: "login",
     element: <Login />,
   },
-    {
+  {
     path: "register",
     element: <Register />,
   },
-  // {
-  //   path: "forget-password/confirm-password",
-  //   element: <ForgotPass />,
-  // },
-
 ]);

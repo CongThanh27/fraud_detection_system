@@ -43,18 +43,27 @@ function extractAuthPayload(response) {
     response.profile?.username ??
     null;
 
+  const role =
+    response.role ??
+    response.data?.role ??
+    response.result?.role ??
+    response.user?.role ??
+    response.profile?.role ??
+    "user";
+
   const user =
     response.user ??
     response.profile ??
     response.data?.user ??
     response.result?.user ??
-    (username ? { username } : null) ??
+    (username ? { username, role } : null) ??
     null;
 
   return {
     token: token || null,
     user: user || null,
     username: username || (user && user.username) || null,
+    role: role || "user",
     raw: response,
   };
 }
@@ -99,14 +108,19 @@ async function login(credentials) {
 
     const userInfo =
       payload.user ||
-      (payload.username ? { username: payload.username } : null) ||
+      (payload.username ? { username: payload.username, role: payload.role } : null) ||
       (() => {
         const decoded = decodeJwt(payload.token);
         if (!decoded) {
           return null;
         }
-        return decoded.sub ? { id: Number(decoded.sub) || decoded.sub } : null;
+        return decoded.sub ? { id: Number(decoded.sub) || decoded.sub, role: decoded.role || "user" } : null;
       })();
+
+    // Ensure role is always in userInfo
+    if (userInfo && !userInfo.role) {
+      userInfo.role = payload.role || "user";
+    }
 
     persistSession({
       token: payload.token,
@@ -164,15 +178,6 @@ async function registerAccount(data) {
 }
 
 async function fetchProfile() {
-  const stored = localStorage.getItem(USER_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      // Continue decoding from token
-    }
-  }
-
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
     throw new Error("No authentication token found.");
@@ -183,9 +188,22 @@ async function fetchProfile() {
     throw new Error("Unable to decode authentication token.");
   }
 
+  // Lấy user từ localStorage nếu có
+  const stored = localStorage.getItem(USER_KEY);
+  let storedUser = null;
+  if (stored) {
+    try {
+      storedUser = JSON.parse(stored);
+    } catch {
+      // Continue with decoded token
+    }
+  }
+
+  // Merge stored user với decoded token data (ưu tiên token vì nó mới nhất)
   return {
-    id: decoded.sub ? Number(decoded.sub) || decoded.sub : undefined,
-    username: decoded.username || decoded.preferred_username || null,
+    id: storedUser?.id || (decoded.sub ? Number(decoded.sub) || decoded.sub : undefined),
+    username: storedUser?.username || decoded.username || decoded.preferred_username || null,
+    role: decoded.role || "user",  // Luôn lấy role từ token
     exp: decoded.exp,
   };
 }

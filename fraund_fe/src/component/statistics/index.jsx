@@ -212,7 +212,7 @@ const Statistics = () => {
               <Space>
                 <Button
                   type="link"
-                  href="http://my-mlflow-eastasia-thanh-ctn.hjfkc0gkb2ghbvfe.koreacentral.azurecontainer.io:5000/"
+                  href="http://0.0.0.0:5001"
                   target="_blank"
                   rel="noreferrer"
                 >

@@ -5,4 +5,4 @@ export { default as Register } from "./register";
 export { default as History } from "./history";
 export { default as Statistics } from "./statistics";
 export { default as Batch } from "./history";
-export { default as Admin } from "./statistics";
+export { default as Admin } from "./admin_dashboard";

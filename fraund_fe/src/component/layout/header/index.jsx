@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, Dropdown, Space, Typography } from "antd";
+import { Button, Dropdown, Space, Typography, Badge } from "antd";
 import {
   AreaChartOutlined,
   HistoryOutlined,
@@ -32,18 +32,30 @@ const Header = () => {
     );
   }, [user]);
 
-  const userMenu = useMemo(
-    () => [
-      {
+  const userRole = useMemo(() => {
+    return user?.role || "user";
+  }, [user]);
+
+  const userMenu = useMemo(() => {
+    const baseItems = [];
+
+    if (userRole === "admin") {
+      baseItems.push({
         key: "batch",
         icon: <HistoryOutlined />,
         label: <Link to="/batch">Chấm điểm theo lô</Link>,
-      },
-      {
+      });
+    }
+
+    if (userRole === "admin") {
+      baseItems.push({
         key: "admin",
         icon: <AreaChartOutlined />,
-        label: <Link to="/admin">Quản lý mô hình</Link>,
-      },
+        label: <Link to="/admin">Dashboard quản trị</Link>,
+      });
+    }
+
+    baseItems.push(
       {
         type: "divider",
       },
@@ -51,10 +63,11 @@ const Header = () => {
         key: "logout",
         icon: <LogoutOutlined />,
         label: "Đăng xuất",
-      },
-    ],
-    []
-  );
+      }
+    );
+
+    return baseItems;
+  }, [userRole]);
 
   const handleMenuClick = async ({ key }) => {
     if (key === "logout") {
@@ -67,6 +80,10 @@ const Header = () => {
         navigate("/login");
       }
     }
+  };
+
+  const getRoleBadgeColor = (role) => {
+    return role === "admin" ? "red" : "blue";
   };
 
   return (
@@ -87,9 +104,6 @@ const Header = () => {
               <Text strong className="!text-base md:!text-lg">
                 {/* FinShot Protect */}
               </Text>
-              {/* <div className="text-xs text-gray-500 hidden sm:block">
-                Bảng điều khiển chấm điểm giao dịch gian lận theo thời gian thực
-              </div> */}
             </div>
           </button>
 
@@ -103,7 +117,17 @@ const Header = () => {
                 trigger={["click"]}
               >
                 <Button type="text" icon={<UserOutlined />}>
-                  {displayName || "Tài khoản"}
+                  <span>{displayName || "Tài khoản"}</span>
+                  <Badge
+                    count={userRole.toUpperCase()}
+                    style={{
+                      backgroundColor: getRoleBadgeColor(userRole),
+                      fontSize: "10px",
+                      height: "18px",
+                      lineHeight: "18px",
+                      marginLeft: "4px",
+                    }}
+                  />
                 </Button>
               </Dropdown>
             ) : (

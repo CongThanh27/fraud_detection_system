@@ -48,10 +48,10 @@ const SiderMenu = () => {
         icon: <SettingOutlined />,
         label: (
           <Tooltip
-            title={!token ? "Đăng nhập để truy cập quản trị mô hình" : null}
+            title={!token ? "Đăng nhập để truy cập Dashboard quản trị" : null}
             placement="right"
           >
-            <span>Quản lý mô hình</span>
+            <span>Dashboard quản trị</span>
           </Tooltip>
         ),
         disabled: !token,

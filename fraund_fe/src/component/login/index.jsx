@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Button, Card, Form, Input, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, Typography, Space, Tag } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { authService } from "../../services/authService";
 import { fetchProfile, setAuthError, setCredentials } from "../../features/authSlice";
 
@@ -11,6 +11,7 @@ const Login = () => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [showRoleInfo, setShowRoleInfo] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +31,7 @@ const Login = () => {
 
   const handleFinish = async (values) => {
     setError(null);
+    setShowRoleInfo(false);
     setSubmitting(true);
     try {
       const payload = {
@@ -48,10 +50,20 @@ const Login = () => {
         })
       );
       dispatch(setAuthError(null));
+      
+      // Show role info
+      const userRole = result.user?.role || result.role || "user";
+      setShowRoleInfo(true);
+      console.log("Logged in as role:", userRole);
+      
       if (!result.user) {
         dispatch(fetchProfile());
       }
-      navigate(from, { replace: true });
+      
+      // Navigate after a short delay to show role info
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1500);
     } catch (err) {
       const message =
         err?.response?.data?.message ||
@@ -81,6 +93,21 @@ const Login = () => {
             type="error"
             message="Đăng nhập thất bại"
             description={error}
+            showIcon
+            className="mb-4"
+          />
+        )}
+
+        {showRoleInfo && (
+          <Alert
+            type="success"
+            message="Đăng nhập thành công"
+            description={
+              <Space>
+                <span>Bạn được đăng nhập với quyền hạn:</span>
+                <Tag color="blue">USER</Tag>
+              </Space>
+            }
             showIcon
             className="mb-4"
           />

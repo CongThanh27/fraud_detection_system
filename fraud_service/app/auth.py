@@ -26,6 +26,7 @@ class AuthContext:
     user_id: int
     username: str
     token_jti: str
+    role: str
 
 # Hàm đảm bảo schema auth_users và auth_tokens được tạo trong DB
 def _ensure_schema() -> None:
@@ -56,13 +57,14 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Aut
     return user
 
 # Hàm tạo payload chuẩn cho JWT access token
-def _jwt_payload(user_id: int, jti: str, expires_at: datetime) -> dict:
+def _jwt_payload(user_id: int, jti: str, expires_at: datetime, role: str = "user") -> dict:
     return {
         "sub": str(user_id),
         "jti": jti,
         "exp": expires_at,
         "iat": datetime.now(tz=timezone.utc),
         "type": "access",
+        "role": role,
     }
 
 # Hàm phát hành JWT mới và lưu thông tin token xuống DB
@@ -75,7 +77,7 @@ def issue_token(db: Session, user: AuthUser) -> str:
     lifetime = timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
     expires_at = datetime.now(tz=timezone.utc) + lifetime
     token_jti = AuthToken.new_jti()
-    payload = _jwt_payload(user.id, token_jti, expires_at)
+    payload = _jwt_payload(user.id, token_jti, expires_at, user.role)
     encoded = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     db_token = AuthToken(
         token_jti=token_jti,
@@ -145,7 +147,16 @@ def require_active_user(token: AuthToken = Depends(get_current_auth_token)) -> A
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account has been disabled.",
         )
-    return AuthContext(user_id=user.id, username=user.username, token_jti=token.token_jti)
+    return AuthContext(user_id=user.id, username=user.username, token_jti=token.token_jti, role=user.role)
+
+# Dependency kiểm tra người dùng phải có role "admin"
+def require_admin_role(auth: AuthContext = Depends(require_active_user)) -> AuthContext:
+    if auth.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires admin privileges.",
+        )
+    return auth
 
 # Hàm thu hồi token bằng cách set revoked_at trong DB
 def revoke_token(db: Session, token_jti: str) -> None:
@@ -178,4 +189,4 @@ def optional_active_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account has been disabled.",
         )
-    return AuthContext(user_id=user.id, username=user.username, token_jti=db_token.token_jti)
+    return AuthContext(user_id=user.id, username=user.username, token_jti=db_token.token_jti, role=user.role)

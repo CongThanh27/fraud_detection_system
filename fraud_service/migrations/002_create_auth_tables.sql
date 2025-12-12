@@ -22,3 +22,9 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens (user_id);
 -- Index hỗ trợ tra cứu nhanh bằng jti
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_jti ON auth_tokens (token_jti);
+
+ALTER TABLE auth_users
+ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
+
+-- Tạo index để tối ưu tìm kiếm theo role
+CREATE INDEX IF NOT EXISTS idx_auth_users_role ON auth_users (role);

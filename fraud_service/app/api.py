@@ -24,6 +24,7 @@ from app.auth import (
     issue_token,
     optional_active_user,
     require_active_user,
+    require_admin_role,
     revoke_token,
 )
 from app.database import get_db  
@@ -148,7 +149,8 @@ class TokenResponse(BaseModel):
     access_token: str  
     token_type: str = "bearer"  
     expires_in: int  
-    username: str  
+    username: str
+    role: str  
 
 class RegisterRequest(BaseModel):
     username: constr(min_length=3, max_length=150)  
@@ -175,6 +177,7 @@ def login(
         access_token=token,
         expires_in=_jwt_ttl_seconds(),
         username=user.username,
+        role=user.role,
     ) 
 
 
@@ -198,14 +201,6 @@ def register(
     db: Session = Depends(get_db), 
     auth: Optional[AuthContext] = Depends(optional_active_user), 
 ):
-    # stmt_count = select(func.count()).select_from(AuthUser) 
-    # existing_count = db.scalar(stmt_count) or 0 
-    # if existing_count > 0 and auth is None: 
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Registration is disabled for unauthenticated users.",
-    #     )
-
     stmt = select(AuthUser).where(AuthUser.username == payload.username)  # Kiểm tra username đã tồn tại chưa
     if db.execute(stmt).scalar_one_or_none(): 
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username has been taken.")
@@ -217,14 +212,20 @@ def register(
             detail="Password is too long (maximum 72 bytes when UTF-8 encoded).",
         )
 
+    # Kiểm tra nếu đây là user đầu tiên thì set role = "admin", nếu không thì "user"
+    stmt_count = select(func.count()).select_from(AuthUser)
+    existing_count = db.scalar(stmt_count) or 0
+    initial_role = "admin" if existing_count == 0 else "user"
+
     new_user = AuthUser(  
         username=payload.username,
         password_hash=hash_password(payload.password),
+        role=initial_role,
     )
     db.add(new_user) 
     db.commit()  
     db.refresh(new_user) 
-    return {"id": new_user.id, "username": new_user.username}  
+    return {"id": new_user.id, "username": new_user.username, "role": new_user.role}  
 
 @app.get("/health", tags=["Health"], summary="Check service health")
 def health():
@@ -239,7 +240,7 @@ def health():
     "/reload",
     tags=["Admin"],
     summary="Reload model and artifacts from disk or MLflow Registry",
-    dependencies=[Depends(require_active_user)], 
+    dependencies=[Depends(require_admin_role)], 
 )
 def reload_model():
     _hydrate()
@@ -291,7 +292,7 @@ def score(tx: Tx):
     "/score/batch",
     tags=["Scoring"],
     summary="Score a batch of transactions",
-    dependencies=[Depends(require_active_user)],  
+    dependencies=[Depends(require_admin_role)],  
 )
 def score_batch(payload: TxBatch):
     if not payload.transactions:
@@ -342,7 +343,7 @@ def score_batch(payload: TxBatch):
     "/score/upload",
     tags=["Scoring"],
     summary="Score transactions from uploaded CSV file",
-    dependencies=[Depends(require_active_user)], 
+    dependencies=[Depends(require_admin_role)], 
 )
 async def score_upload(file: UploadFile = File(...), include_allow: bool = True, top_k: int = 3):
     if not file.filename.lower().endswith(".csv"):
@@ -393,6 +394,139 @@ async def score_upload(file: UploadFile = File(...), include_allow: bool = True,
         "model_version": _th["model_version"],
         "results": detail_rows.to_dict(orient="records"),
     }
+
+
+# ============== ADMIN ENDPOINTS FOR USER MANAGEMENT ==============
+
+@app.get(
+    "/admin/users",
+    tags=["Admin"],
+    summary="Get all users (admin only)",
+    dependencies=[Depends(require_admin_role)],
+)
+def get_all_users(db: Session = Depends(get_db)):
+    """Get list of all users with their roles and status."""
+    stmt = select(AuthUser).order_by(AuthUser.id)
+    users = db.execute(stmt).scalars().all()
+    
+    return {
+        "users": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "is_active": user.is_active,
+                "created_at": user.created_at,
+            }
+            for user in users
+        ]
+    }
+
+
+@app.put(
+    "/admin/users/{user_id}/role",
+    tags=["Admin"],
+    summary="Update user role (admin only)",
+    dependencies=[Depends(require_admin_role)],
+)
+def update_user_role(
+    user_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    """Update a user's role to 'admin' or 'user'."""
+    role = payload.get("role")
+    
+    if role not in ("admin", "user"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'admin' or 'user'.",
+        )
+    
+    stmt = select(AuthUser).where(AuthUser.id == user_id)
+    user = db.execute(stmt).scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found.",
+        )
+    
+    user.role = role
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "message": f"User role updated to '{role}'",
+    }
+
+
+@app.put(
+    "/admin/users/{user_id}/status",
+    tags=["Admin"],
+    summary="Toggle user active status (admin only)",
+    dependencies=[Depends(require_admin_role)],
+)
+def toggle_user_status(
+    user_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    """Enable or disable a user account."""
+    is_active = payload.get("is_active")
+    
+    if is_active is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'is_active' is required.",
+        )
+    
+    stmt = select(AuthUser).where(AuthUser.id == user_id)
+    user = db.execute(stmt).scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found.",
+        )
+    
+    user.is_active = is_active
+    db.commit()
+    db.refresh(user)
+    
+    status_str = "enabled" if is_active else "disabled"
+    return {
+        "id": user.id,
+        "username": user.username,
+        "is_active": user.is_active,
+        "message": f"User account {status_str}",
+    }
+
+
+# ============== INSIGHTS ENDPOINTS ==============
+
+@app.get(
+    "/api/insights",
+    tags=["Analytics"],
+    summary="Get EDA and preprocessing insights (admin only)",
+    dependencies=[Depends(require_admin_role)],
+)
+def get_insights():
+    """Get exploratory data analysis (EDA) and preprocessing pipeline summary."""
+    from app.insights import get_insights_summary
+    
+    try:
+        result = get_insights_summary()
+        return result
+    except Exception as e:
+        LOGGER.error(f"Error generating insights: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate insights: {str(e)}"
+        )
 
 
 # loaded_model = mlflow.pyfunc.load_model(logged_model_uri)
